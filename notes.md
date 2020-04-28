@@ -158,13 +158,90 @@ Luego, ,para estilizar correctamente un form, simplemente lo filtramos en el tem
 
 ## Admin y Auth
 
-Por defecto, Django tiene una aplicacion para administrar la aplicacion y otra para la autentificacion de usuarios. Para utilizar el administrador, primero hay que asegurarse de que exista la base de datos para la autentificacion de usuarios (Ver [ORM](#orm-de-django)). Despues, solo hay que ejecutar el comando:
+Por defecto, Django tiene herramientas para administrar la aplicacion y para la autentificacion de usuarios. Para utilizar el administrador, primero hay que asegurarse de que exista la base de datos para la autentificacion de usuarios (Ver [ORM](#orm-de-django)). Despues, solo hay que ejecutar el comando:
 
 ``` bash
 python manage.py createsuperuser
 ```
 
 Finalmente, bajo la ruta `admin/` por defecto se encuentra la interfaz web del administrador, a la cual se puede accesar con las credenciales creadas.
+
+Para hacer la autentificacion de uusuarios, podemos utilizar la funcion [`authenticate`](https://docs.djangoproject.com/en/3.0/topics/auth/default/) de `django.contrib.auth`:
+
+``` python
+from django.contrib.auth import authenticate, login
+
+def my_view(request):
+    username = request.POST['username']
+    password = request.POST['password']
+    user = authenticate(request, username=username, password=password)
+    if user is not None:
+        login(request, user)
+        # Redirect to a success page.
+        ...
+    else:
+        # Return an 'invalid login' error message.
+        ...
+```
+
+Similarmente, el logout de una sesion simplemente se hace con la funcion `logout` como se muiestra aqui:
+
+``` python
+from django.contrib.auth import logout
+
+def logout_view(request):
+    logout(request)
+    # Redirect to a success page.
+```
+
+Django almacena la sesion del usuario bajo dentro de los requests HTTP del sitio. Esto permite acceso a ciertos datos sobre el usuario dentro del request, como:
+
+* `request.user.username`
+* `request.user.email`
+* `request.user.is_authenticated`
+* `request.user.is_staff`
+
+Todos estos datos tambien pueden ser utilizados dentro de las plantillas sin necesidad de agregarlos a un contexto. Por defecto, los usuarios siguen la estructura del modelo [User](https://docs.djangoproject.com/en/3.0/ref/contrib/auth/#user-model) de Django.
+
+Utilizando esta informacion, se pueden agregar redirects a los views para restringir el acceso a paginas unicamente a usuarios autenticados. Por ejemplo:
+
+``` python
+from django.conf import settings
+from django.shortcuts import redirect
+
+def my_view(request):
+    if not request.user.is_authenticated:
+        return redirect('%s?next=%s' % (settings.LOGIN_URL, request.path))
+    # ...
+```
+
+De otro modo, podemos utilizar uno de los _decorators_ que Django aporta para agregar la funcionalidad deseada a alguna vista:
+
+``` python
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def my_view(request):
+    ...
+```
+
+Django tambien aporta algunas vistas preestablecidas para manejar la funcionalidad de login y logout:
+
+``` python
+from django.contrib.auth import views as auth_views
+from django.urls import path
+
+urlpatterns = [
+    ...
+    path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    ...
+]
+```
+
+Por defecto, `LoginView` busca la plantilla para la vista bajo `registration/login.html`. Podemos cambiar esto utilizando el parametro `template_name='<login_template>.html'` en la funcion `as_view` (Idem para `Logout View`).
+
+Documentacion a fondo de como personalizar aspectos de la autentificacion de usuarios: <https://docs.djangoproject.com/en/3.0/topics/auth/customizing/>
 
 ## ORM de Django
 
@@ -246,4 +323,24 @@ from django.contrib import admin
 from .models import Post
 
 admin.site.register(Post)
+```
+
+## Signals
+
+Funcionalidad de Django que permite ejecutar codigo en respuesta a ciertos eventos. Por ejemplo, podemos agregar una señal de tal modo que cada vez que se cree un nuevo usuario, creemos un perfil para este, o que cuando un usuario actualiza su informacion, tambien se actualize su perfil:
+
+``` python
+from django.db.models.signals import post_save
+from django.contrib.auth.models import User
+from django.dispatch import receiver
+from .models import Profile
+
+@reciever(post_save, sender=User)
+def create_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+@reciever(post_save, sender=User)
+def save_profile(sender, instance, **kwargs):
+    instance.profile.save()
 ```
