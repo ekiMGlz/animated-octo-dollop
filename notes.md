@@ -99,7 +99,7 @@ urlpatterns = [
 ]
 ```
 
-En este caso, se agrega la aplicacion _blog_ al servidor bajo la ruta `blog/`, y sobre esta ruta se montan las distintas trayectorias que se dieron de alta en `<nombre_aplicacion>/urls.py`. Por ejemplo, `blog/` redirige hacia la respuesta creada por la funcion `blog.views.home`, y `blog/about` redirige hacia `blog.views.about`.
+En este caso, se agrega la aplicacion _blog_ al servidor bajo la ruta `blog/`, y sobre esta ruta se montan las distintas trayectorias que se dieron de alta en `<nombre_aplicacion>/urls.py`. Por ejemplo, `blog/` redirige hacia la respuesta creada por la funcion `blog.views.home`, y `blog/about` redirige hacia `blog.views.about`. Mas info sobre URLs: <https://docs.djangoproject.com/en/3.0/ref/urls/>.
 
 ## Templates
 
@@ -343,4 +343,55 @@ def create_profile(sender, instance, created, **kwargs):
 @reciever(post_save, sender=User)
 def save_profile(sender, instance, **kwargs):
     instance.profile.save()
+```
+
+## Class Based Views
+
+En lugar de definir funciones para manejar las solicitudes HTTP, Django permite la creacion de clases mas robustas para amarrar logica de back-end a las vistas de la aplicacion. Django incluye varios tipos de class based views basados en funcionalidad tipica de paginas web. Por ejemplo, hay `ListViews`, `CreateViews`, `UpdateViews` y [mas](https://docs.djangoproject.com/en/3.0/topics/class-based-views/intro/).
+
+Ejemplo de ListView:
+
+``` python
+# Como una funcion:
+def home(request):
+    context = {
+        'posts': Post.objects.all()
+    }
+    return render(request, 'blog/home.html', context)
+
+#Como un class based view
+class PostListView(ListView):
+    model = Post
+    # Por defecto busca el template <app>/<model>_<viewtype>.html
+    template_name = 'blog/home.html'
+    # Nombre a asignar la lista de objetos dentro del template de django
+    context_object_name = 'posts'
+    # Ordenar mas nuevos primero
+    context_object_name = 'posts'
+```
+
+Class badsed views tambien te permiten utilizar diferentes funciones para manejar distiontos tipos de requests al mismo URL (e.g. POST o GET) sin necesidad de utilizar `if` dentro de la funcion de respuesta para distinguir entre estos.
+
+Otros ejemplos:
+
+``` python
+class PostDetailView(DetailView):
+    model = Post
+
+
+class PostCreateView(LoginRequiredMixin, CreateView):
+    model = Post
+    fields = ['title', 'content']
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Post
+    success_url = 'blog-home'
+
+    def test_func(self):
+        post = self.get_object()
+        return post.author == self.request.user
 ```
