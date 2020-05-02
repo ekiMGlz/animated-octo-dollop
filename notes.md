@@ -368,6 +368,8 @@ class PostListView(ListView):
     context_object_name = 'posts'
     # Ordenar mas nuevos primero
     context_object_name = 'posts'
+    # Numero de elementos por paginas
+    paginate_by = 5
 ```
 
 Class badsed views tambien te permiten utilizar diferentes funciones para manejar distiontos tipos de requests al mismo URL (e.g. POST o GET) sin necesidad de utilizar `if` dentro de la funcion de respuesta para distinguir entre estos.
