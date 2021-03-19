@@ -1,6 +1,6 @@
 ﻿asgiref==3.2.7
 cycler==0.10.0
-Django==3.0.7
+Django==3.1.6
 django-crispy-forms==1.9.0
 Jinja2==2.11.2
 kiwisolver==1.2.0
